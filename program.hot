@@ -1,0 +1,10 @@
+print poez
+;
+print klein :)
+;
+
+jump eend;
+print kwakus;
+label eend;
+
+print gelukt?;
