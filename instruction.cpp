@@ -1,51 +1,33 @@
 #include "instruction.hpp"
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstring>
 
-Instruction::Instruction() {
-    
+Instruction::Instruction(const char *name, uint8_t *(*funcPtr)(uint8_t *), uint8_t *(*compileFunc)(Parser, uint8_t *, uint8_t)) {
+    this->run = funcPtr;
+    this->compileFunc = compileFunc;
+    std::strcpy(this->sName_, name);
+    nId_ = getId();
+    printf("\n%s = 0x%02x\n", this->sName_, this->nId_);
 }
 
 Instruction::~Instruction() {
     
 }
 
-Command Instruction::getCommand() {
-    return eCommand_;
+//Start bij 1 want we willen geen \0 karakter.
+uint8_t Instruction::nInstructionCount_ = 1;
+
+uint8_t* Instruction::compile(Parser parser, uint8_t *compiled) {
+    return compileFunc(parser, compiled, nId_);
 }
 
-VoidInstruction::VoidInstruction(Command eCommand) {
-    eCommand_ = eCommand;
+char* Instruction::getName() {
+    return sName_;
 }
 
-VoidInstruction::~VoidInstruction() {
-    
+uint8_t Instruction::getId() {
+    return nInstructionCount_++;
 }
 
-ByteInstruction::ByteInstruction(Command eCommand, uint8_t num) {
-    eCommand_ = eCommand;
-    nArg_ = num;
-}
 
-ByteInstruction::~ByteInstruction() {
-    
-}
 
-WordInstruction::WordInstruction(Command eCommand, uint16_t num) {
-    eCommand_ = eCommand;
-    nArg_ = num;
-}
 
-WordInstruction::~WordInstruction() {
-    
-}
-
-StringInstruction::StringInstruction(Command eCommand, char *str) {
-    eCommand_ = eCommand;
-    sArg_ = (char *)malloc(strlen(str));
-    strcpy(sArg_, str);
-}
-
-StringInstruction::~StringInstruction() {
-    
-}

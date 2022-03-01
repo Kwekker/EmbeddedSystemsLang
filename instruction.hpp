@@ -2,55 +2,24 @@
 #define __INSTRUCTION_H__
 
 #include <stdint.h>
-#include <string.h>
-
-enum Command {
-    label   = 0,
-    jump    = 1,
-    led     = 2, 
-    button  = 3,
-    wait    = 4,
-    print   = 5
-};
+#include "parser.hpp"
+#define COMMAND_MAX_NAME 10
 
 class Instruction {
-    public:
-        Instruction();
-        ~Instruction();
-        Command getCommand();
-    protected:
-        Command eCommand_;
+public:
+    Instruction(const char *name, uint8_t *(*funcPtr)(uint8_t *), uint8_t *(*compileFunc)(Parser, uint8_t *, uint8_t));
+    ~Instruction();
+    uint8_t *(*run)(uint8_t *);
+    uint8_t *compile(Parser parser, uint8_t *compiled);
+    char *getName();
 
-};
+    static uint8_t getId();
 
-class VoidInstruction : public Instruction {
-    public:
-        VoidInstruction(Command eCommand);
-        ~VoidInstruction();
-};
-
-class ByteInstruction : public Instruction {
-    public:
-        ByteInstruction(Command eCommand, uint8_t num);
-        ~ByteInstruction();
-
-        uint8_t nArg_;
-};
-
-class WordInstruction : public Instruction {
-    public:
-        WordInstruction(Command eCommand, uint16_t num);
-        ~WordInstruction();
-
-        uint16_t nArg_;
-};
-
-class StringInstruction : public Instruction {
-    public:
-        StringInstruction(Command eCommand, char *str);
-        ~StringInstruction();
-
-        char *sArg_;
+private:
+    uint8_t *(*compileFunc)(Parser, uint8_t *, uint8_t);
+    static uint8_t nInstructionCount_;
+    char sName_[COMMAND_MAX_NAME];
+    uint8_t nId_;
 };
 
 #endif // __INSTRUCTION_H__

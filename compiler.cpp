@@ -8,34 +8,36 @@
 #include <stdint.h>
 #include <map>
 #include <string>
+#include <string.h>
 #include "parser.hpp"
 #include "runtime.hpp"
 #include "instruction.hpp"
 
-#define MAX_INVOER 100
-#define MAX_INSTRUCTIONS 255
-#define LABEL_UNKNOWN 0xffff
-#define MAX_LABELS          10
-#define MAX_LABEL_LENGTH    6
-
-uint16_t getLabelIndex(std::string sLabel);
-
 int main(int nArgc, char* aArgv[]) {
     setbuf(stdout, NULL);
     Parser oParser;
-    Runtime oRuntime;
-    Instruction *aInstructions[MAX_INSTRUCTIONS];
-    uint16_t nInstructionIndex = 0;
+    uint8_t compiled[1024] = {0};
+
+    const uint8_t instructionCount = 3;
+    Instruction instructions[] = {
+        Instruction("label", Runtime::label, Runtime::compLabel),
+        Instruction("jump", Runtime::jump, Runtime::compJump),
+        Instruction("print", Runtime::print, Runtime::compPrint)
+    };
+
+
+    printf("Reading file..\n");
 
     if(nArgc < 2) {
-        printf("Bro ik heb een bestand nodig.\nGebruik ./compiler bestand.hot");
+        printf("Bro ik heb een bestand nodig.\nGebruik ./compiler bestand.hot\n");
         return -1;
     }
     FILE *program = fopen(aArgv[1], "r");
     if(program == nullptr) {
-        printf("Bro ik heb een bestand nodig.\nGebruik ./compiler bestand.hot");
+        printf("Dat was geen geldig bestand...\nGebruik ./compiler bestand.hot\n");
         return -1;
     }
+
 
     //Dank je stackoverflow
     fseek(program, 0, SEEK_END);
@@ -47,118 +49,70 @@ int main(int nArgc, char* aArgv[]) {
     sBuffer[programSize] = 0;
 
     char *sLine = strtok(sBuffer, ";");
-    //Keep track of the label ids and the line of the label.
-    uint16_t labelLineId[MAX_LABELS] = {0};
+    uint8_t* compiledPointer = compiled;
 
 
-    while(sLine != NULL) {
+    printf("--== Compiling ==--\n");
+    //compileer de dingen
+    while(sLine != NULL) { 
 
+        printf("\tCompiling [\e[33m%s\e[0m]\n", sLine);
         // Parse de regel in tokens
         uint8_t nCount = oParser.parse(sLine);
 
         // Compile
         if (nCount > 0) {
-            if (strcmp(oParser.token(0), "button") == 0) {
-                // Goed commando?
-                if (nCount == 2) {
-                    uint16_t index = getLabelIndex(oParser.token(1));
-                    aInstructions[nInstructionIndex] = new WordInstruction(button, index);
+            for(uint8_t i = 0; i < instructionCount; i++) {
+                printf("\t\t%s == %s??\n", oParser.token(0), instructions[i].getName());
+                if(strcmp(oParser.token(0), instructions[i].getName()) == 0) {
+                    compiledPointer = instructions[i].compile(oParser, compiledPointer);
+                    break;
                 }
-                else {
-                    printf(" Syntax error! ");
-                };
             }
-            else
-            if (strcmp(oParser.token(0), "led") == 0) {
-                // Goed commando?
-                if (nCount == 2) {
-                    aInstructions[nInstructionIndex] = new ByteInstruction(led, atoi(oParser.token(1)));
-                }
-                else {
-                    printf(" Syntax error at led! ");
-                };
-            }
-            else
-            if (strcmp(oParser.token(0), "label") == 0) {
-                // Goed commando?
-                if (nCount == 2) {
-                    uint16_t index = getLabelIndex(oParser.token(1));
-                    aInstructions[nInstructionIndex] = new WordInstruction(label, index);
-                    labelLineId[index] = nInstructionIndex;
-                }
-                else {
-                    printf(" Syntax error at label! ");
-                };
-            }
-            else if (strcmp(oParser.token(0), "jump") == 0) {
-                // Goed commando?               
-                if (nCount == 2) {
-                    uint16_t index = getLabelIndex(oParser.token(1));
-                    aInstructions[nInstructionIndex] = new WordInstruction(jump, index);
-                }
-                else {
-                    printf(" Syntax error at jump! ");
-                };
-            }
+        }
 
-            else if (strcmp(oParser.token(0), "wait") == 0) {
-                // Goed commando?
-                if (nCount == 2) {
-                    aInstructions[nInstructionIndex] = new WordInstruction(wait, atoi(oParser.token(1)));
-                }
-                else {
-                    printf(" Syntax error on wait! ");
-                };
-            }
-
-            else if (strcmp(oParser.token(0), "print") == 0) {
-                // Goed commando?
-                if (nCount >= 2) {
-                    aInstructions[nInstructionIndex] = new StringInstruction(print, oParser.getFirstTokenPointer());
-                }
-                else {
-                    printf(" Syntax error on print! ");
-                };
-            }
-            else {
-                printf(" Onbekende invoer! ");
-            };
-        };
-        nInstructionIndex++;
         sLine = strtok(NULL, ";");
     }
 
     // Afsluiten
     fclose(program);
+    *compiledPointer = 0;
 
-    uint16_t nInstructionAmount = nInstructionIndex;
-    nInstructionIndex = 0;
-
-    //Edit labels sweep
-    for(uint16_t i = 0; i < nInstructionAmount; i++) {
-        Command com = aInstructions[i]->getCommand();
-        if(com == label || com == jump || com == button) {
-            ((WordInstruction *) aInstructions[i])->nArg_ = labelLineId[((WordInstruction *) aInstructions[i])->nArg_];
-        }
-    }
-
-    printf("Compiled! :)\n------------------------------\n\n");
-
-    while(oRuntime.run(aInstructions) < nInstructionAmount);
+    printf("--== Labeling jumps ==--\n");
+    Runtime::labelJumps();
 
     
+    printf("The compiled program: \n");
+    uint8_t* c = compiled;
+    uint8_t zCount = 0;
+    while(zCount < 5) {
+        printf("%02x ", *(c++)); // :O c++!
+        if(*c == 0) zCount++;
+        else zCount = 0;
+    }
+
+    printf("\n");
+    c = compiled;
+    zCount = 0;
+    while(zCount < 5) {
+        if(*c == '\n') printf("\\n ");
+        else printf(" %c ", *c);
+        c++;
+        if(*c == 0) zCount++;
+        else zCount = 0;
+    }
+
+
+
+
+    // Run het programma
+    compiledPointer = compiled;
+
+    printf("\n--== Running the program ==--\n\n");
+    while(*compiledPointer != 0) {
+        compiledPointer = instructions[*compiledPointer - 1].run(compiledPointer + 1);//instructions[*compiledPointer - 1]
+    }
+    printf("\n\n--== End of program ==--\n");
+
     return 0;
 };
-
-//Ik gebruik hier strings want maps vinden char arrays niet leuk
-uint16_t getLabelIndex(std::string sLabel) {
-    static std::map<std::string, uint16_t> labels;
-    static uint16_t nextIndex = 0;
-
-    if(!labels.count(sLabel)) {
-        labels[sLabel] = nextIndex;
-        return nextIndex++;
-    }
-    else return labels[sLabel];
-
-}
